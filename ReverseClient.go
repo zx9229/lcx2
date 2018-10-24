@@ -1,9 +1,10 @@
 package main
 
 import (
-	"log"
 	"net"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 //ReverseClient 反向客户端
@@ -54,16 +55,16 @@ func (thls *ReverseClient) heartbeatWork() {
 		return
 	}
 	var err error
-	var now time.Time
+	var tmCheck time.Time
 	for curCliConn == thls.cliConn {
 		time.Sleep(time.Minute)
-		now = time.Now()
-		if err = curCliConn.WriteBytes(msg2buf(&CmdHeartbeat{DateTime: now})); err != nil {
-			//log.Println(err)
+		tmCheck = time.Now()
+		if err = curCliConn.WriteBytes(msg2buf(&CmdHeartbeat{DateTime: tmCheck})); err != nil {
+			//glog.Infoln(err) //一般让recv的那个线程打印错误,这样错误较少重复.
 			curCliConn.Close()
 			break
-		} else if 180 < now.Sub(thls.tmHeartbeat).Seconds() {
-			log.Println(now, thls.tmHeartbeat)
+		} else if 180 < tmCheck.Sub(thls.tmHeartbeat).Seconds() {
+			glog.Warningf("heartbeat timeout, tmCheck=%v, tmHeartbeat=%v, sock=(%p, R=%v, L=%v)", tmCheck, thls.tmHeartbeat, curCliConn.rawConn, curCliConn.RemoteAddr(), curCliConn.LocalAddr())
 			curCliConn.Close()
 			break
 		}
@@ -77,31 +78,39 @@ func (thls *ReverseClient) eventWork() {
 	var objID byte
 	for {
 		if buf, err = thls.cliConn.ReadBytes(); err != nil {
-			log.Println(err)
+			glog.Warningln(err)
 			break
 		}
 		if obj, objID, err = buf2msg(buf); err != nil {
-			panic(err)
+			glog.Errorf("buf2msg failed, objID=%v, err=%v, sock=(%p, R=%v, L=%v)", objID, err, thls.cliConn.rawConn, thls.cliConn.RemoteAddr(), thls.cliConn.LocalAddr())
+			thls.cliConn.Close()
+			break
 		}
 		switch objID {
 		case idCmdHeartbeat:
 			thls.tmHeartbeat = time.Now() //收到了SERVER的心跳.
 		case idCmdListenRsp:
-			log.Println(obj)
-			if (obj.(*CmdListenRsp)).ErrNo != 0 {
-				thls.cliConn.Close()
-				//SERVER那边listen一个(Host:Port)失败了,要么直接放弃,要么过会再试,
-				//我选择间隔一段时间之后,再试一试.
-				time.Sleep(time.Minute)
-			}
+			thls.handleCmdListenRsp(obj.(*CmdListenRsp))
 		case idCmdProxyReq:
-			//log.Println(obj)
+			//glog.Infoln("CmdProxyReq", obj)
 			go thls.handleCmdProxyReq(obj.(*CmdProxyReq))
 		default:
 		}
 	}
 	thls.cliConn.Close()
 	go thls.reconnectWork()
+}
+
+func (thls *ReverseClient) handleCmdListenRsp(dataRsp *CmdListenRsp) {
+	if dataRsp.ErrNo == 0 {
+		glog.Infoln("CmdListenRsp", dataRsp)
+	} else {
+		glog.Warningln("CmdListenRsp", dataRsp)
+		thls.cliConn.Close()
+		//SERVER那边listen一个(Host:Port)失败了,要么直接放弃,要么过会再试,
+		//我选择间隔一段时间之后,再试一试.
+		time.Sleep(time.Minute)
+	}
 }
 
 func (thls *ReverseClient) handleCmdProxyReq(dataReq *CmdProxyReq) {
@@ -114,7 +123,7 @@ func (thls *ReverseClient) handleCmdProxyReq(dataReq *CmdProxyReq) {
 			thls.cliConn.Close()
 		}
 	} else {
-		if err = writeDataToSocket(pConn, msg2buf(dataRsp)); err != nil {
+		if err = writeDataToSocket(pConn, msg2buf(dataRsp)); err != nil { //我没写错,就是往这个proxyConn里面写一条消息.
 			pConn.Close()
 		} else {
 			if tConn, err = net.Dial("tcp", thls.TargetAddr); err != nil {

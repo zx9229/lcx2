@@ -42,3 +42,13 @@ func (thls *SafeConn) Close() {
 	thls.rawConn.Close()
 	thls.mutexWrite.Unlock()
 }
+
+// LocalAddr returns the local network address.
+func (thls *SafeConn) LocalAddr() net.Addr {
+	return thls.rawConn.LocalAddr()
+}
+
+// RemoteAddr returns the remote network address.
+func (thls *SafeConn) RemoteAddr() net.Addr {
+	return thls.rawConn.RemoteAddr()
+}
