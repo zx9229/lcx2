@@ -13,6 +13,15 @@ type lcx2Interface interface {
 }
 
 func main() {
+	if true {
+		//文件(github.com/golang/glog/glog.go)有各参数的说明.
+		//stderrthreshold: [INFO|WARNING|ERROR|FATEL],
+		//日志写入文件中,如果日志的等级达到阈值,就顺便把日志输出到标准错误.
+		//如果启用了"logtostderr"参数,则"stderrthreshold"(好像)无效.
+		flag.Set("stderrthreshold", "WARNING")
+		//https://blog.csdn.net/lengyuezuixue/article/details/79203165
+		flag.Set("logtostderr", "true")
+	}
 	var (
 		argHelp   bool
 		argType   string
@@ -70,4 +79,5 @@ func main() {
 			break
 		}
 	}
+	glog.Flush()
 }
