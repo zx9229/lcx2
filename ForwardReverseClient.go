@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"log"
+	"errors"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 //ForwardReverseClient omit
@@ -41,7 +43,7 @@ func newForwardReverseClientFromContent(s string, isBase64 bool) (cli *ForwardRe
 	return
 }
 
-func (thls *ForwardReverseClient) run() {
+func (thls *ForwardReverseClient) run() (err error) {
 	var totalNum int
 	if thls.TransferSlice != nil {
 		for _, node := range thls.TransferSlice {
@@ -61,8 +63,12 @@ func (thls *ForwardReverseClient) run() {
 			totalNum++
 		}
 	}
-	log.Printf("a total of %v clients and started up.", totalNum)
-	for totalNum != 0 {
+	if totalNum == 0 {
+		err = errors.New("no client can start")
+	}
+	glog.Warningf("a total of %v clients have been started.", totalNum)
+	for err == nil {
 		time.Sleep(time.Second)
 	}
+	return err
 }

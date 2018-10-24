@@ -2,9 +2,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/golang/glog"
 )
+
+//lcx2Interface omit
+type lcx2Interface interface {
+	run() error
+}
 
 func main() {
 	var (
@@ -44,19 +50,21 @@ func main() {
 		glog.Fatalln(err)
 	}
 	//
-	if argType == "client" {
-		if obj, err := newForwardReverseClientFromContent(content, isBase64); err != nil {
-			glog.Fatalln(err)
-		} else {
-			obj.run()
-		}
-	} else if argType == "server" {
-		if obj, err := newForwardReverseServerFromContent(content, isBase64); err != nil {
-			glog.Fatalln(err)
-		} else {
-			obj.run()
-		}
-	} else {
-		glog.Fatalln("unknown type", argType)
+	var lcx2Obj lcx2Interface
+	switch argType {
+	case "client":
+		lcx2Obj, err = newForwardReverseClientFromContent(content, isBase64)
+	case "server":
+		lcx2Obj, err = newForwardReverseServerFromContent(content, isBase64)
+	case "tran":
+		lcx2Obj, err = newTransferClientFromContent(argListen, argTarget)
+	default:
+		err = fmt.Errorf("unknown type=%v", argType)
+	}
+	if err != nil {
+		glog.Fatalln(err)
+	}
+	if err = lcx2Obj.run(); err != nil {
+		glog.Fatalln(err)
 	}
 }

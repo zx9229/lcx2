@@ -13,31 +13,38 @@ import (
 type TransferClient struct {
 	ListenAddr string
 	TargetAddr string
+	tryOnce    bool
+}
+
+func newTransferClientFromContent(listenAddr string, targetAddr string) (cli *TransferClient, err error) {
+	return &TransferClient{ListenAddr: listenAddr, TargetAddr: targetAddr, tryOnce: true}, nil
 }
 
 func (thls *TransferClient) start() {
-	go transferData(thls.ListenAddr, thls.TargetAddr, true)
+	go thls.run()
 }
 
-func transferData(listenAddr string, targetAddr string, doRetry bool) {
+func (thls *TransferClient) run() error {
+	return transferData(thls.ListenAddr, thls.TargetAddr, thls.tryOnce)
+}
+
+func transferData(listenAddr string, targetAddr string, tryOnce bool) (err error) {
 	proxyIt := func(sock net.Conn) {
-		if conn, err := net.Dial("tcp", targetAddr); err != nil {
+		if conn, eErr := net.Dial("tcp", targetAddr); eErr != nil {
 			sock.Close()
 		} else {
 			forwardData(sock, conn, false)
 		}
 	}
 	for range "1" {
-		var err error
 		var curListener net.Listener
 		for curListener == nil {
 			if curListener, err = net.Listen("tcp", listenAddr); err != nil {
 				glog.Errorln(err)
-				if doRetry {
-					time.Sleep(time.Minute)
-				} else {
+				if tryOnce {
 					break
 				}
+				time.Sleep(time.Minute)
 			}
 		}
 		if curListener == nil {
@@ -57,6 +64,7 @@ func transferData(listenAddr string, targetAddr string, doRetry bool) {
 		glog.Warningf("Listener(%v) close.", curListener.Addr())
 		curListener.Close()
 	}
+	return
 }
 
 func forwardData(conn1 net.Conn, conn2 net.Conn, isLog bool) {
