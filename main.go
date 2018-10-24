@@ -35,36 +35,39 @@ func main() {
 	flag.BoolVar(&argStdin, "stdin", false, "[M] read base64 encoded data from standard input.")
 	flag.Parse()
 	//
-	if argHelp {
-		flag.Usage()
-		return
-	}
-	//
-	if argType == "tran" {
-		transferData(argListen, argTarget, false)
-		return
-	}
-	//
-	content, isBase64, err := loadConfigContent(argStdin, argBase64, argConf, argForce, argOffset)
-	if err != nil {
-		glog.Fatalln(err)
-	}
-	//
-	var lcx2Obj lcx2Interface
-	switch argType {
-	case "client":
-		lcx2Obj, err = newForwardReverseClientFromContent(content, isBase64)
-	case "server":
-		lcx2Obj, err = newForwardReverseServerFromContent(content, isBase64)
-	case "tran":
-		lcx2Obj, err = newTransferClientFromContent(argListen, argTarget)
-	default:
-		err = fmt.Errorf("unknown type=%v", argType)
-	}
-	if err != nil {
-		glog.Fatalln(err)
-	}
-	if err = lcx2Obj.run(); err != nil {
-		glog.Fatalln(err)
+	for range "1" {
+		if argHelp {
+			flag.Usage()
+			break
+		}
+		var err error
+		var content string
+		var isBase64 bool
+		if argType != "tran" {
+			content, isBase64, err = loadConfigContent(argStdin, argBase64, argConf, argForce, argOffset)
+			if err != nil {
+				glog.Errorf("loadConfigContent with err=%v", err)
+				break
+			}
+		}
+		var lcx2Obj lcx2Interface
+		switch argType {
+		case "client":
+			lcx2Obj, err = newForwardReverseClientFromContent(content, isBase64)
+		case "server":
+			lcx2Obj, err = newForwardReverseServerFromContent(content, isBase64)
+		case "tran":
+			lcx2Obj, err = newTransferClientFromContent(argListen, argTarget)
+		default:
+			err = fmt.Errorf("unknown type=%v", argType)
+		}
+		if err != nil {
+			glog.Errorf("new object with err=%v", err)
+			break
+		}
+		if err = lcx2Obj.run(); err != nil {
+			glog.Errorf("run object with err=%v", err)
+			break
+		}
 	}
 }

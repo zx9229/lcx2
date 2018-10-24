@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
-	"log"
 	"net"
+
+	"github.com/golang/glog"
 )
 
 //ForwardReverseServer omit
@@ -46,30 +47,30 @@ func (thls *ForwardReverseServer) initialize() {
 	thls.listenCache = newSafeRsCache()
 }
 
-func (thls *ForwardReverseServer) run() error {
+func (thls *ForwardReverseServer) run() (err error) {
 	thls.initialize()
 	//
-	var err error
 	for range "1" {
 		var curListener net.Listener
 		if curListener, err = net.Listen("tcp", thls.ListenAddr); err != nil {
-			log.Printf("Listen %v with err=%v", thls.ListenAddr, err)
+			glog.Errorln(err)
 			break
 		}
 		if curListener != nil {
-			log.Printf("Listener(%v) open.", curListener.Addr())
+			glog.Warningf("Listener(%v) open.", curListener.Addr())
 		}
 		var sock net.Conn
 		for {
 			sock = nil
 			if sock, err = curListener.Accept(); err != nil {
+				glog.Errorln(err)
 				break
 			}
-			//log.Printf("Listener(%v) Accept (%p, L=%v, R=%v)", curListener.Addr(), sock, sock.LocalAddr(), sock.RemoteAddr())
+			//glog.Infof("Listener(%v) Accept (%p, R=%v, L=%v)", curListener.Addr(), sock, sock.RemoteAddr(), sock.LocalAddr())
 			go thls.handleSocket(sock)
 		}
 		if curListener != nil {
-			log.Printf("Listener(%v) close.", curListener.Addr())
+			glog.Warningf("Listener(%v) close.", curListener.Addr())
 			curListener.Close()
 		}
 	}
@@ -79,14 +80,16 @@ func (thls *ForwardReverseServer) run() error {
 func (thls *ForwardReverseServer) handleSocket(sock net.Conn) {
 	buf, isTimeout, err := readDataFromSocket(sock, 0, 1500, true)
 	if isTimeout || err != nil {
-		log.Printf("readCmdFromSocket failed, sock=%p, isTimeout=%v, err=%v", sock, isTimeout, err)
+		glog.Warningf("readDataFromSocket failed, isTimeout=%v, err=%v, sock=(%p, R=%v, L=%v)", isTimeout, err, sock, sock.RemoteAddr(), sock.LocalAddr())
 		sock.Close()
 		return
 	}
 	var obj interface{}
 	var objID byte
 	if obj, objID, err = buf2msg(buf); err != nil {
-		panic(err)
+		glog.Errorf("buf2msg failed, objID=%v, err=%v, sock=(%p, R=%v, L=%v)", objID, err, sock, sock.RemoteAddr(), sock.LocalAddr())
+		sock.Close()
+		return
 	}
 	switch objID {
 	case idCmdConnect:
@@ -96,12 +99,14 @@ func (thls *ForwardReverseServer) handleSocket(sock net.Conn) {
 	case idCmdProxyRsp:
 		thls.handleCmdProxyRsp(sock, obj.(*CmdProxyRsp))
 	default:
+		glog.Errorf("unknown objID=%v, sock=(%p, R=%v, L=%v)", objID, sock, sock.RemoteAddr(), sock.LocalAddr())
 		sock.Close()
 	}
 }
 
 func (thls *ForwardReverseServer) handleCmdConnect(sock net.Conn, dataCmd *CmdConnect) {
 	if dataCmd.Pwd != thls.Password {
+		glog.Warningf("wrong password in CmdConnect, sock=(%p, R=%v, L=%v)", sock, sock.RemoteAddr(), sock.LocalAddr())
 		sock.Close()
 	} else {
 		if conn, err := net.Dial("tcp", dataCmd.Addr); err != nil {
@@ -116,26 +121,27 @@ func (thls *ForwardReverseServer) handleCmdListenReq(sock net.Conn, dataReq *Cmd
 	for range "1" {
 		if dataReq.Pwd != thls.Password {
 			//不发送"密码错误"消息,如果发送"密码错误"消息,那么它就有特征头了,我就可以写程序暴力破解了.
+			glog.Warningf("wrong password in CmdListenReq, sock=(%p, R=%v, L=%v)", sock, sock.RemoteAddr(), sock.LocalAddr())
 			sock.Close()
 			break
 		}
 		var err error
 		var node *ReverseServer
 		if node, err = createReverseServer(sock, dataReq, thls); err != nil { //只要调用这个函数,无论成功失败,都不用管sock了.
-			log.Println(err)
+			glog.Warningln(err)
 			break
 		}
 		if thls.listenCache.insert(node.listenAddr, node) {
 			node.start()
 		} else {
-			log.Panicln(node)
+			glog.Fatalln(node)
 		}
 	}
 }
 
 func (thls *ForwardReverseServer) handleCmdProxyRsp(sock net.Conn, dataRsp *CmdProxyRsp) {
 	if node, isOk := thls.listenCache.query(dataRsp.Addr); isOk {
-		node.feedConn(sock)
+		node.feedConn(sock) //它是一个代理用途的socket
 	} else {
 		sock.Close()
 	}
