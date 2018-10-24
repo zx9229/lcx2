@@ -61,14 +61,13 @@ func (thls *ReverseClient) heartbeatWork() {
 		tmCheck = time.Now()
 		if err = curCliConn.WriteBytes(msg2buf(&CmdHeartbeat{DateTime: tmCheck})); err != nil {
 			//glog.Infoln(err) //一般让recv的那个线程打印错误,这样错误较少重复.
-			curCliConn.Close()
 			break
 		} else if 180 < tmCheck.Sub(thls.tmHeartbeat).Seconds() {
 			glog.Warningf("heartbeat timeout, tmCheck=%v, tmHeartbeat=%v, sock=(%p, R=%v, L=%v)", tmCheck, thls.tmHeartbeat, curCliConn.rawConn, curCliConn.RemoteAddr(), curCliConn.LocalAddr())
-			curCliConn.Close()
 			break
 		}
 	}
+	curCliConn.Close()
 }
 
 func (thls *ReverseClient) eventWork() {

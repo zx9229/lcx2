@@ -1,10 +1,11 @@
 package main
 
 import (
-	"log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 //ReverseServer omit
@@ -38,11 +39,11 @@ func createReverseServer(clientConn net.Conn, dataReq *CmdListenReq, frs *Forwar
 			break
 		}
 		if tmpListener != nil {
-			log.Printf("Listener(%v) open.", tmpListener.Addr())
+			glog.Warningf("Listener(%v) open.", tmpListener.Addr())
 		}
 		if err = writeDataToSocket(clientConn, msg2buf(dataRsp)); err != nil {
 			if tmpListener != nil {
-				log.Printf("Listener(%v) close.", tmpListener.Addr())
+				glog.Warningf("Listener(%v) close.", tmpListener.Addr())
 				tmpListener.Close()
 				tmpListener = nil
 			}
@@ -67,9 +68,10 @@ func (thls *ReverseServer) acceptWork() {
 	for {
 		sock = nil
 		if sock, err = thls.listener.Accept(); err != nil {
+			glog.Errorln(err)
 			break
 		}
-		//log.Printf("Listener(%v) Accept (%p, L=%v, R=%v)", thls.listener.Addr(), sock, sock.LocalAddr(), sock.RemoteAddr())
+		//glog.Infof("Listener(%v) Accept (%p, R=%v, L=%v)", curListener.Addr(), sock, sock.RemoteAddr(), sock.LocalAddr())
 		thls.connQue.pushBack(sock)
 		if err = thls.cliConn.WriteBytes(dataReq); err != nil {
 			break
@@ -80,15 +82,15 @@ func (thls *ReverseServer) acceptWork() {
 
 func (thls *ReverseServer) heartbeatWork() {
 	var err error
-	var now time.Time
+	var tmCheck time.Time
 	for {
 		time.Sleep(time.Minute)
-		now = time.Now()
-		if err = thls.cliConn.WriteBytes(msg2buf(&CmdHeartbeat{DateTime: now})); err != nil {
-			//log.Println(err) //如果输出这里的错误的话,日志会很多,因此注释掉它.
+		tmCheck = time.Now()
+		if err = thls.cliConn.WriteBytes(msg2buf(&CmdHeartbeat{DateTime: tmCheck})); err != nil {
+			//glog.Infoln(err) //一般让recv的那个线程打印错误,这样错误较少重复.
 			break
-		} else if 180 < now.Sub(thls.tmHeartbeat).Seconds() {
-			log.Println(now, thls.tmHeartbeat)
+		} else if 180 < tmCheck.Sub(thls.tmHeartbeat).Seconds() {
+			glog.Warningf("heartbeat timeout, tmCheck=%v, tmHeartbeat=%v, sock=(%p, R=%v, L=%v)", tmCheck, thls.tmHeartbeat, thls.cliConn.rawConn, thls.cliConn.RemoteAddr(), thls.cliConn.LocalAddr())
 			break
 		}
 	}
@@ -103,38 +105,44 @@ func (thls *ReverseServer) eventWork() {
 	var objID byte
 	for {
 		if buf, err = thls.cliConn.ReadBytes(); err != nil {
-			log.Println(err)
+			glog.Warningln(err)
 			break
 		}
 		if obj, objID, err = buf2msg(buf); err != nil {
-			panic(err)
+			glog.Errorf("buf2msg failed, objID=%v, err=%v, sock=(%p, R=%v, L=%v)", objID, err, thls.cliConn.rawConn, thls.cliConn.RemoteAddr(), thls.cliConn.LocalAddr())
+			thls.cliConn.Close()
+			break
 		}
 		switch objID {
 		case idCmdHeartbeat:
 			thls.tmHeartbeat = time.Now() //收到了CLIENT的心跳.
 		case idCmdProxyRsp:
-			if (obj.(*CmdProxyRsp)).ErrNo != 0 {
-				log.Println(obj)
-				//客户端代理失败了一次,服务端就会有一个连接无法代理,所以服务端要销毁一个连接.
-				if tmpConn, isOk := thls.connQue.popFront(); isOk {
-					tmpConn.Close()
-				}
-			}
+			thls.handleCmdProxyRsp(obj.(*CmdProxyRsp))
 		default:
 		}
 	}
 	thls.stop()
 }
 
+func (thls *ReverseServer) handleCmdProxyRsp(dataRsp *CmdProxyRsp) {
+	if dataRsp.ErrNo != 0 {
+		glog.Warningln("CmdProxyRsp", dataRsp)
+		//客户端代理失败了一次,服务端就会有一个连接无法代理,所以服务端要销毁一个连接.
+		if tmpConn, isOk := thls.connQue.popFront(); isOk {
+			tmpConn.Close()
+		}
+	}
+}
+
 func (thls *ReverseServer) stop() {
 	thls.once.Do(func() {
 		if thls.listener != nil {
-			log.Printf("Listener(%v) close.", thls.listener.Addr())
+			glog.Warningf("Listener(%v) close.", thls.listener.Addr())
 			thls.listener.Close()
 		}
 		thls.cliConn.Close()
 		if val, isOk := thls.frs.listenCache.delete(thls.listenAddr); !isOk || thls != val {
-			log.Panicln(val, isOk)
+			glog.Fatalln(isOk, val, thls)
 		}
 	})
 	thls.connQue.clear(true)
