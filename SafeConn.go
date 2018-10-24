@@ -5,18 +5,19 @@ import (
 	"sync"
 )
 
-//SafeConn 多线程同时write时是安全的.
+//SafeConn 多线程同时read/write时是安全的.
 type SafeConn struct {
 	mutexRead  sync.Mutex
 	mutexWrite sync.Mutex
 	rawConn    net.Conn
 }
 
+//newSafeConn omit
 func newSafeConn(conn net.Conn) *SafeConn {
 	return &SafeConn{rawConn: conn}
 }
 
-//WriteBytes omit
+// WriteBytes reads data from the connection.
 func (thls *SafeConn) WriteBytes(buf []byte) (err error) {
 	thls.mutexWrite.Lock()
 	err = writeDataToSocket(thls.rawConn, buf)
@@ -24,7 +25,7 @@ func (thls *SafeConn) WriteBytes(buf []byte) (err error) {
 	return
 }
 
-//ReadBytes omit
+// ReadBytes writes data to the connection.
 func (thls *SafeConn) ReadBytes() (buf []byte, err error) {
 	var isTimeout bool
 	thls.mutexRead.Lock()
@@ -36,7 +37,8 @@ func (thls *SafeConn) ReadBytes() (buf []byte, err error) {
 	return
 }
 
-//Close omit
+// Close closes the connection.
+// Any blocked Read or Write operations will be unblocked and return errors.
 func (thls *SafeConn) Close() {
 	thls.mutexWrite.Lock()
 	thls.rawConn.Close()

@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-//SafeRsCache omit
+//SafeRsCache 安全的ReverseServer缓存类.
 type SafeRsCache struct {
 	sync.Mutex
 	M map[string]*ReverseServer
