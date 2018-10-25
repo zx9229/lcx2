@@ -36,7 +36,7 @@ func (thls *ReverseClient) reconnectWork() {
 		}
 		thls.cliConn = newSafeConn(conn)
 		thls.tmHeartbeat = time.Now()
-		if err = thls.cliConn.WriteBytes(msg2buf(&CmdListenReq{Addr: thls.SrvLisAddr})); err != nil {
+		if err = thls.cliConn.WriteBytes(msg2buf(&CmdListenReq{Pwd: thls.Password, Addr: thls.SrvLisAddr})); err != nil {
 			thls.cliConn.Close()
 			thls.cliConn = nil
 			time.Sleep(time.Second * 30)
@@ -97,6 +97,7 @@ func (thls *ReverseClient) eventWork() {
 		}
 	}
 	thls.cliConn.Close()
+	time.Sleep(time.Second * 5) //如果client和server的密码不一致,那么server会kill掉client,此时加上5秒的间隔,不至于暴力重连.
 	go thls.reconnectWork()
 }
 

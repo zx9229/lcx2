@@ -53,7 +53,7 @@ func (thls *ForwardClient) handleProxy(sock net.Conn) {
 	if conn, err := net.Dial("tcp", thls.ConnectAddr); err != nil {
 		sock.Close()
 	} else {
-		if err = writeDataToSocket(conn, msg2buf(&CmdConnect{Addr: thls.TargetAddr})); err != nil {
+		if err = writeDataToSocket(conn, msg2buf(&CmdConnect{Pwd: thls.Password, Addr: thls.TargetAddr})); err != nil {
 			conn.Close()
 			sock.Close()
 		} else {
