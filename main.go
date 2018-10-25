@@ -47,6 +47,7 @@ func main() {
 	for range "1" {
 		if argHelp {
 			flag.Usage()
+			showHelp(argType)
 			break
 		}
 		var err error
