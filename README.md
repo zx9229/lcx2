@@ -9,6 +9,12 @@
 * 我拷贝了`cw1997/NATBypass`的部分代码，同时增加了"反向代理"的功能。
 
 
+## 程序相关
+
+[工作原理概览图](https://raw.githubusercontent.com/zx9229/lcx2/master/README.png)。  
+[程序的配置文件](https://github.com/zx9229/lcx2/blob/master/helpPage.go)。  
+
+
 ## Golang在windows下交叉编译linux程序
 
 * 下载源码
