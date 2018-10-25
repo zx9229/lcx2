@@ -58,7 +58,7 @@ func transferData(listenAddr string, targetAddr string, tryOnce bool) (err error
 				glog.Errorln(err)
 				break
 			}
-			glog.Infof("Listener(%v) Accept (%p, L=%v, R=%v)", curListener.Addr(), sock, sock.LocalAddr(), sock.RemoteAddr())
+			glog.Infof("Listener(%v) Accept (%p, R=%v, L=%v)", curListener.Addr(), sock, sock.RemoteAddr(), sock.LocalAddr())
 			go proxyIt(sock)
 		}
 		glog.Warningf("Listener(%v) close.", curListener.Addr())

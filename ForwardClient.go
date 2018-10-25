@@ -40,7 +40,7 @@ func (thls *ForwardClient) listenAndAccept() {
 			glog.Errorln(err)
 			break
 		}
-		glog.Infof("Listener(%v) Accept (%p, L=%v, R=%v)", curListener.Addr(), sock, sock.LocalAddr(), sock.RemoteAddr())
+		glog.Infof("Listener(%v) Accept (%p, R=%v, L=%v)", curListener.Addr(), sock, sock.RemoteAddr(), sock.LocalAddr())
 		go thls.handleProxy(sock)
 	}
 	if curListener != nil {
