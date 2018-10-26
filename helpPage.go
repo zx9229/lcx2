@@ -7,6 +7,10 @@ import (
 func showHelp(argType string) {
 	fmt.Println()
 	fmt.Println("Version20181025")
+	fmt.Println("Example:")
+	fmt.Println("./exe -type tran   -listen 127.0.0.1:31433 -target 127.0.0.1:1433")
+	fmt.Println("./exe -type server -conf cfg_server.json")
+	fmt.Println("./exe -type client -conf cfg_client.json")
 	switch argType {
 	case "server":
 		fmt.Println(configServer())
@@ -14,6 +18,7 @@ func showHelp(argType string) {
 		fmt.Println(configClient())
 	default:
 	}
+	fmt.Println()
 }
 
 func configServer() string {

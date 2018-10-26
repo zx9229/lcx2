@@ -39,6 +39,7 @@ func transferData(listenAddr string, targetAddr string, tryOnce bool) (err error
 	for range "1" {
 		var curListener net.Listener
 		for curListener == nil {
+			//listenAddr为空时,net库应当有一个隐含操作:随机监听一个可用的端口.程序不准备规避此情况.
 			if curListener, err = net.Listen("tcp", listenAddr); err != nil {
 				glog.Errorln(err)
 				if tryOnce {
