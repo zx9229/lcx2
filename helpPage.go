@@ -6,10 +6,11 @@ import (
 
 func showHelp(argType string) {
 	fmt.Println()
-	fmt.Println("Version20181026")
+	fmt.Println("Version20181027")
 	fmt.Println("Example:")
 	fmt.Println("./exe -help -type server")
 	fmt.Println("./exe -help -type client")
+	fmt.Println(`./exe -type echo   -listen 127.0.0.1:65535 -welcome "I'm echo server"`)
 	fmt.Println("./exe -type tran   -listen 127.0.0.1:31433 -target 127.0.0.1:1433")
 	fmt.Println("./exe -type server -conf cfg_server.json")
 	fmt.Println("./exe -type client -conf cfg_client.json")
@@ -35,6 +36,14 @@ func configServer() string {
 func configClient() string {
 	content := `
 {
+    "EchoSlice": [
+        {
+            "ListenAddr": "127.0.0.1:65535",
+            "WelcomeMsg": "I'm echo server",
+            "EchoHead": "[NOW echo]"
+        }
+        //socket连接到CLI(65535),CLI就发送WelcomeMsg并回显发过来的消息.
+    ],
     "TransferSlice": [
         {
             "ListenAddr": "127.0.0.1:31433",

@@ -23,20 +23,22 @@ func main() {
 		flag.Set("logtostderr", "true")
 	}
 	var (
-		argHelp   bool
-		argType   string
-		argListen string
-		argTarget string
-		argConf   string
-		argOffset bool
-		argForce  bool
-		argBase64 string
-		argStdin  bool
+		argHelp    bool
+		argType    string
+		argListen  string
+		argTarget  string
+		argWelcome string
+		argConf    string
+		argOffset  bool
+		argForce   bool
+		argBase64  string
+		argStdin   bool
 	)
 	flag.BoolVar(&argHelp, "help", false, "[M] show this help.")
-	flag.StringVar(&argType, "type", "tran", "[M] tran, client, server")
-	flag.StringVar(&argListen, "listen", "", "[M][tran] listenAddr")
+	flag.StringVar(&argType, "type", "echo", "[M] echo, tran, client, server")
+	flag.StringVar(&argListen, "listen", "", "[M][tran]/[echo] listenAddr")
 	flag.StringVar(&argTarget, "target", "", "[M][tran] targetAddr")
+	flag.StringVar(&argWelcome, "welcome", "", "[M][echo] welcome message")
 	flag.StringVar(&argConf, "conf", "", "[M] configuration file name.")
 	flag.BoolVar(&argOffset, "offset", false, "[M] find the conf based on the dir where the exe is located.")
 	flag.BoolVar(&argForce, "force", false, "[M] force parsing json-type conf files in a simple and rude manner.")
@@ -53,7 +55,7 @@ func main() {
 		var err error
 		var content string
 		var isBase64 bool
-		if argType != "tran" {
+		if (argType != "echo") && (argType != "tran") {
 			content, isBase64, err = loadConfigContent(argStdin, argBase64, argConf, argForce, argOffset)
 			if err != nil {
 				glog.Errorf("loadConfigContent with err=%v", err)
@@ -62,12 +64,14 @@ func main() {
 		}
 		var lcx2Obj lcx2Interface
 		switch argType {
-		case "client":
-			lcx2Obj, err = newForwardReverseClientFromContent(content, isBase64)
-		case "server":
-			lcx2Obj, err = newForwardReverseServerFromContent(content, isBase64)
+		case "echo":
+			lcx2Obj, err = newEchoClientFromContent(argListen, argWelcome, "")
 		case "tran":
 			lcx2Obj, err = newTransferClientFromContent(argListen, argTarget)
+		case "server":
+			lcx2Obj, err = newForwardReverseServerFromContent(content, isBase64)
+		case "client":
+			lcx2Obj, err = newForwardReverseClientFromContent(content, isBase64)
 		default:
 			err = fmt.Errorf("unknown type=%v", argType)
 		}

@@ -11,6 +11,7 @@ import (
 
 //ForwardReverseClient omit
 type ForwardReverseClient struct {
+	EchoSlice     []*EchoClient
 	TransferSlice []*TransferClient
 	ForwardSlice  []*ForwardClient
 	ReverseSlice  []*ReverseClient
@@ -45,6 +46,12 @@ func newForwardReverseClientFromContent(s string, isBase64 bool) (cli *ForwardRe
 
 func (thls *ForwardReverseClient) run() (err error) {
 	var totalNum int
+	if thls.EchoSlice != nil {
+		for _, node := range thls.EchoSlice {
+			node.start()
+			totalNum++
+		}
+	}
 	if thls.TransferSlice != nil {
 		for _, node := range thls.TransferSlice {
 			node.start()
