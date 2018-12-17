@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -26,11 +26,10 @@ func (thls *EchoClient) start() {
 
 func (thls *EchoClient) run() (err error) {
 	proxyIt := func(sock net.Conn) {
-		if 0 < len(thls.WelcomeMsg) {
-			if err = writeDataToSocket(sock, []byte(thls.WelcomeMsg+"\n")); err != nil {
-				sock.Close()
-				return
-			}
+		welcomeMessage := fmt.Sprintf("Server_Accept(R=%v,L=%v)", sock.RemoteAddr(), sock.LocalAddr()) + thls.WelcomeMsg
+		if err = writeDataToSocket(sock, []byte(welcomeMessage+"\n")); err != nil {
+			sock.Close()
+			return
 		}
 		var bufRecv []byte
 		var isTimeout bool
@@ -39,8 +38,12 @@ func (thls *EchoClient) run() (err error) {
 			if bufRecv, isTimeout, err = readDataFromSocket(sock, '\n', 0, false); isTimeout || (err != nil) {
 				break
 			}
-			bufSend = []byte(strings.Replace(thls.EchoHead, "NOW", time.Now().Format("2006-01-02_15:04:05"), -1))
-			bufSend = append(bufSend, bufRecv...)
+			sep := len(bufRecv) - 1
+			if (1 <= sep) && (bufRecv[sep-1] == '\r') {
+				sep--
+			}
+			bufSend = append([]byte(time.Now().Format("<=2006-01-02+15:04:05")), bufRecv[sep:]...)
+			bufSend = append(bufRecv[:sep], bufSend...)
 			if err = writeDataToSocket(sock, bufSend); err != nil {
 				break
 			}
